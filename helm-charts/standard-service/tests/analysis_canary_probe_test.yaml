@@ -1,0 +1,80 @@
+suite: standard-service canary-probe gate (job-based AnalysisTemplate)
+templates:
+  - templates/analysistemplate-canary-probe.yaml
+  - templates/rollout.yaml
+tests:
+  - it: renders a job-based AnalysisTemplate when the canary-probe gate is enabled
+    template: templates/analysistemplate-canary-probe.yaml
+    set:
+      app.name: test-svc
+      app.image: idp/test-svc:v1.0.0
+      platform.ecrRegistry: 1234.dkr.ecr.us-west-2.amazonaws.com
+      ingress.enabled: true
+      rollout.canaryProbe.enabled: true
+    asserts:
+      - isKind:
+          of: AnalysisTemplate
+      - equal:
+          path: metadata.name
+          value: test-svc-canary-probe
+      - exists:
+          path: spec.metrics[0].provider.job
+      # No tolerance for failure — a single failed probe fails the run.
+      - equal:
+          path: spec.metrics[0].failureLimit
+          value: 0
+      # The probe Job must itself pass admission control (non-root, etc.).
+      - equal:
+          path: spec.metrics[0].provider.job.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - contains:
+          path: spec.metrics[0].provider.job.spec.template.spec.containers[0].securityContext.capabilities.drop
+          content: ALL
+
+  - it: emits no AnalysisTemplate when the canary-probe gate is disabled
+    template: templates/analysistemplate-canary-probe.yaml
+    set:
+      app.name: test-svc
+      app.image: idp/test-svc:v1.0.0
+      platform.ecrRegistry: 1234.dkr.ecr.us-west-2.amazonaws.com
+      ingress.enabled: true
+      rollout.canaryProbe.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: inserts a canary analysis step referencing the canary-probe template when enabled
+    template: templates/rollout.yaml
+    set:
+      app.name: test-svc
+      app.image: idp/test-svc:v1.0.0
+      platform.ecrRegistry: 1234.dkr.ecr.us-west-2.amazonaws.com
+      ingress.enabled: true
+      rollout.strategy: canary
+      rollout.canaryProbe.enabled: true
+    asserts:
+      # First step is still the 5% canary weight (gate fires at first traffic).
+      - equal:
+          path: spec.strategy.canary.steps[0].setWeight
+          value: 5
+      - equal:
+          path: spec.strategy.canary.steps[1].analysis.templates[0].templateName
+          value: test-svc-canary-probe
+      - equal:
+          path: spec.strategy.canary.steps[1].analysis.args[0].value
+          value: test-svc-canary
+
+  - it: leaves the canary steps unchanged when the canary-probe gate is disabled
+    template: templates/rollout.yaml
+    set:
+      app.name: test-svc
+      app.image: idp/test-svc:v1.0.0
+      platform.ecrRegistry: 1234.dkr.ecr.us-west-2.amazonaws.com
+      ingress.enabled: true
+      rollout.strategy: canary
+      rollout.canaryProbe.enabled: false
+    asserts:
+      # With the gate off, step[1] is the original pause, not an analysis step.
+      - equal:
+          path: spec.strategy.canary.steps[1].pause.duration
+          value: 60s

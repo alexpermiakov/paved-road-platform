@@ -1,0 +1,33 @@
+# PCI-DSS: Disallow latest tag (6.5.3 - Secure Coding).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Tag
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: Images must not use the 'latest' tag. PCI-DSS 6.5.3
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-latest
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - argo-rollouts
+      validate:
+        message: Images must not use the 'latest' tag
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

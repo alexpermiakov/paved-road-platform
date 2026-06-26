@@ -1,0 +1,21 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: require-resource-limits
+policies:
+  - ../../require-resource-limits.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: require-resource-limits
+    rule: check-limits
+    kind: Pod
+    result: pass
+    resources:
+      - with-limits
+  - policy: require-resource-limits
+    rule: check-limits
+    kind: Pod
+    result: fail
+    resources:
+      - no-limits

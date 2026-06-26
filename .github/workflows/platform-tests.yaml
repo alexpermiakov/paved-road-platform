@@ -1,25 +1,22 @@
-# Tests for the platform's OWN logic — the golden-path Helm chart that every
-# service inherits (rollout strategy, the canary-needs-ingress guard, the
-# enforced pod security context, and the default-deny network policy).
-# These gate changes to the chart so a platform regression can't silently ship
-# to every app team.
+# Tests for the platform's OWN logic — the things every app team inherits:
+#   1. the golden-path Helm chart (rollout strategy, the canary-needs-ingress
+#      guard, the enforced pod security context, the default-deny network policy)
+#   2. the Kyverno admission-control policies (disallow :latest, drop ALL caps,
+#      trusted registries only, required resource limits)
+# These gate changes so a platform regression — a broken chart OR a guardrail
+# that silently stops denying — can't ship to every app team.
 
 name: Platform Tests
 
 on:
-  # Runs as its own visible check on every push to a PR branch.
-  pull_request:
-  # Reused by provision-dev as the pre-provision gate (same suite, blocks the apply).
-  workflow_call:
-  # Safety net for changes that land on main directly (outside the PR flow).
   push:
-    branches: [main]
-    paths:
-      - "helm-charts/**"
-      - ".github/workflows/platform-tests.yaml"
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: read # making sure we override repo/org defaults :)
 
 jobs:
   chart-tests:
@@ -49,3 +46,19 @@ jobs:
 
       - name: Run chart unit tests
         run: helm unittest --strict helm-charts/standard-service
+
+  policy-tests:
+    name: Kyverno policy unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Kyverno CLI
+        uses: kyverno/action-install-cli@v0.2.0
+        with:
+          release: v1.18.1
+
+      - name: Run policy unit tests
+        # Catches a regression that silently weakens a policy so it no longer denies.
+        run: kyverno test infra/modules/security/kyverno-policies/tests
+

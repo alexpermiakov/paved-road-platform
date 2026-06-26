@@ -1,0 +1,11 @@
+{
+  "name": "paved-road-smoke",
+  "private": true,
+  "description": "Post-deploy smoke tests — one spec per service in services/, hitting the live ALB.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}

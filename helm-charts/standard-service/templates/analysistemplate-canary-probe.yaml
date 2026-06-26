@@ -1,0 +1,62 @@
+{{- if .Values.rollout.canaryProbe.enabled }}
+# Argo AnalysisRun canary-probe gate: Actively probes the canary for low-traffic
+# rollouts. Exit 0 = pass; non-zero = auto-rollback.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ .Values.app.name }}-canary-probe
+  labels:
+    app: {{ .Values.app.name }}
+    team: {{ .Values.app.team | default "platform" }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    managedBy: platform-team
+spec:
+  args:
+    - name: service-name
+    - name: namespace
+    - name: service-port
+      value: {{ .Values.service.port | quote }}
+  metrics:
+    - name: canary-probe
+      # One-shot gate: run once, no tolerance for failure.
+      count: 1
+      failureLimit: 0
+      provider:
+        job:
+          spec:
+            backoffLimit: 1
+            activeDeadlineSeconds: 60
+            ttlSecondsAfterFinished: 120
+            template:
+              spec:
+                restartPolicy: Never
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 1000
+                containers:
+                  - name: canary-probe
+                    image: curlimages/curl:8.11.0
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      capabilities:
+                        drop:
+                          - ALL
+                    resources:
+                      requests:
+                        cpu: 10m
+                        memory: 16Mi
+                      limits:
+                        cpu: 50m
+                        memory: 32Mi
+                    command:
+                      - /bin/sh
+                      - -c
+                      - |
+                        set -eu
+                        base="http://{{`{{args.service-name}}`}}.{{`{{args.namespace}}`}}.svc.cluster.local:{{`{{args.service-port}}`}}"
+                        echo "canary-probe: probing ${base}"
+                        curl -fsS --max-time 5 --retry 5 --retry-delay 3 --retry-connrefused "${base}/healthz"
+                        curl -fsS --max-time 5 --retry 5 --retry-delay 3 --retry-connrefused "${base}/readyz"
+                        echo "canary-probe: canary healthy"
+{{- end }}

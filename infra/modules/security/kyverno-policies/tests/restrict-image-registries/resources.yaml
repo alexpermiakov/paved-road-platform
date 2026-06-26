@@ -1,0 +1,21 @@
+# from-ecr: pulled from the platform's ECR -> allowed
+apiVersion: v1
+kind: Pod
+metadata:
+  name: from-ecr
+  namespace: order-service
+spec:
+  containers:
+    - name: app
+      image: 1234.dkr.ecr.us-west-2.amazonaws.com/idp/order-service:v1.2.3
+---
+# untrusted-registry: pulled from an arbitrary public registry -> denied
+apiVersion: v1
+kind: Pod
+metadata:
+  name: untrusted-registry
+  namespace: order-service
+spec:
+  containers:
+    - name: app
+      image: registry.example.com/team/app:v1.2.3

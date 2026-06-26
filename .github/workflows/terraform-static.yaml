@@ -1,0 +1,56 @@
+# Static checks for the platform's Terraform — the cheap, no-cloud layer that
+# runs BEFORE any apply: format, validity, and lint.
+#   - fmt -check : code is canonically formatted
+#   - validate   : config is internally consistent (per root module)
+#   - tflint     : best-practice lint (gates on `error`; style warnings surfaced)
+# Reused by provision-dev as a pre-provision gate, so broken/invalid Terraform
+# can't reach `terraform apply`.
+
+name: Terraform Static Checks
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform-static:
+    name: fmt · validate · tflint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.3
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive infra/
+
+      - name: terraform validate (root modules)
+        # Backendless init resolves providers/modules without touching remote state.
+        run: |
+          for root in infra/entry infra/tooling; do
+            echo "::group::$root"
+            terraform -chdir="$root" init -backend=false -input=false
+            terraform -chdir="$root" validate -no-color
+            echo "::endgroup::"
+          done
+
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.63.1
+
+      - name: tflint
+        working-directory: infra
+        # Config: infra/.tflint.hcl. Fail only on errors; style warnings are a
+        # tracked backlog, not yet blocking.
+        run: tflint --recursive --minimum-failure-severity=error --no-color

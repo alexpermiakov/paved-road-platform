@@ -1,0 +1,38 @@
+# HIPAA: Prevent containers from running as root (§164.312(a)(1)).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-root-user
+  annotations:
+    policies.kyverno.io/title: Disallow Root User
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: Containers must not run as root. HIPAA §164.312(a)(1)
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: check-runasnonroot
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - monitoring
+                - argocd
+                - argo-rollouts
+                - amazon-guardduty
+                - falco-system
+      validate:
+        message: Containers must set runAsNonRoot to true
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  runAsNonRoot: true

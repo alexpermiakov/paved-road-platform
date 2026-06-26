@@ -1,0 +1,25 @@
+# with-limits: declares both cpu and memory limits -> allowed
+apiVersion: v1
+kind: Pod
+metadata:
+  name: with-limits
+  namespace: order-service
+spec:
+  containers:
+    - name: app
+      image: idp/order-service:v1.2.3
+      resources:
+        limits:
+          cpu: 500m
+          memory: 256Mi
+---
+# no-limits: declares no resource limits -> denied (noisy-neighbor protection)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-limits
+  namespace: order-service
+spec:
+  containers:
+    - name: app
+      image: idp/order-service:v1.2.3

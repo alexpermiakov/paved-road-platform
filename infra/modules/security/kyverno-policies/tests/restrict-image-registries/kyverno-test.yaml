@@ -1,0 +1,21 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: restrict-image-registries
+policies:
+  - ../../restrict-image-registries.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: restrict-image-registries
+    rule: restrict-registries
+    kind: Pod
+    result: pass
+    resources:
+      - from-ecr
+  - policy: restrict-image-registries
+    rule: restrict-registries
+    kind: Pod
+    result: fail
+    resources:
+      - untrusted-registry

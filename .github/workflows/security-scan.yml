@@ -1,13 +1,14 @@
+# Hard gate on IaC misconfiguration. exit-code 1 means a NEW HIGH/CRITICAL
+# finding fails the build. Pre-existing, triaged findings are suppressed (with
+# rationale) in the repo-root .trivyignore — the "baseline then gate" pattern.
+
 name: Security Scan
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
-    branches: [main]
-  # schedule:
-  # Run weekly on Sundays at midnight
-  # - cron: "0 0 * * 0"
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -28,7 +29,10 @@ jobs:
           scan-ref: "infra/"
           format: "table"
           severity: "HIGH,CRITICAL"
-          exit-code: "0"
+          exit-code: "1"
+          trivyignores: ".trivyignore"
+          # Intentionally-insecure pod fixtures for `kyverno test` — false positives here.
+          skip-dirs: "infra/modules/security/kyverno-policies/tests"
 
       - name: Run Trivy IaC scanner (Helm Charts)
         uses: aquasecurity/trivy-action@0.35.0
@@ -37,7 +41,8 @@ jobs:
           scan-ref: "helm-charts/"
           format: "table"
           severity: "HIGH,CRITICAL"
-          exit-code: "0"
+          exit-code: "1"
+          trivyignores: ".trivyignore"
 
       - name: Run Trivy IaC scanner (ArgoCD/K8s manifests)
         uses: aquasecurity/trivy-action@0.35.0
@@ -46,8 +51,11 @@ jobs:
           scan-ref: "argocd/"
           format: "table"
           severity: "HIGH,CRITICAL"
-          exit-code: "0"
+          exit-code: "1"
+          trivyignores: ".trivyignore"
 
+  # Deeper scanner with built-in compliance mappings (PCI/HIPAA/SOC2); soft_fail by
+  # design — a broad signal for what Trivy doesn't cover, not the gate (Trivy is).
   checkov:
     name: Checkov Policy Scan
     runs-on: ubuntu-latest

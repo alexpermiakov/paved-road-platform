@@ -1,0 +1,49 @@
+# PCI-DSS 1.3, SOC2 CC6.6: Require network segmentation via NetworkPolicy.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-networkpolicy
+  annotations:
+    policies.kyverno.io/title: Require NetworkPolicy
+    policies.kyverno.io/category: Network Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: Require NetworkPolicy to exist before pods can run (PCI-DSS 1.3, SOC2 CC6.6)
+spec:
+  validationFailureAction: Audit
+  background: false
+  rules:
+    - name: check-networkpolicy-exists
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - monitoring
+                - kubecost
+                - argocd
+                - argo-rollouts
+                - external-secrets
+      context:
+        - name: networkpolicies
+          apiCall:
+            urlPath: "/apis/networking.k8s.io/v1/namespaces/{{ request.namespace }}/networkpolicies"
+            jmesPath: "items[].metadata.name"
+      preconditions:
+        all:
+          - key: "{{ request.operation || 'BACKGROUND' }}"
+            operator: NotEquals
+            value: DELETE
+      validate:
+        message: "NetworkPolicy must exist in namespace before creating pods (PCI-DSS 1.3: network segmentation required)"
+        deny:
+          conditions:
+            all:
+              - key: "{{ networkpolicies }}"
+                operator: Equals
+                value: []

@@ -1,0 +1,41 @@
+# SOC 2: Require probes for reliability (CC7.1 - System Operations).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-probes
+  annotations:
+    policies.kyverno.io/title: Require Liveness and Readiness Probes
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: Deployments must have liveness and readiness probes. SOC 2 CC7.1
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: check-probes
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - monitoring
+                - argocd
+                - kubecost
+                - argo-rollouts
+      validate:
+        message: Deployments must have livenessProbe and readinessProbe configured
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - livenessProbe:
+                      "+": "*"
+                    readinessProbe:
+                      "+": "*"

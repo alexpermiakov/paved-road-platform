@@ -123,6 +123,21 @@ spec:
       # Canary deployment steps
       steps:
       - setWeight: 5
+      {{- if .Values.rollout.canaryProbe.enabled }}
+      # Probe-gate the canary at first traffic (5%): actively probe the canary
+      # service; a failed probe fails the AnalysisRun and aborts the rollout
+      # (auto-rollback) before any more traffic shifts. No metrics/traffic needed.
+      - analysis:
+          templates:
+          - templateName: {{ .Values.app.name }}-canary-probe
+          args:
+          - name: service-name
+            value: {{ .Values.app.name }}-canary
+          - name: namespace
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+      {{- end }}
       - pause: { duration: 60s }
       - setWeight: 20
       - pause: { duration: 60s }

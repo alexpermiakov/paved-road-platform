@@ -148,6 +148,11 @@ rollout:
     count: "5" # blueGreen prePromotion gate: metric samples before promoting (must be finite)
     backgroundCount: "20" # canary background analysis: ~10m of 30s samples
   prePromotionAnalysis: true # For blueGreen: run analysis before promoting
+  canaryProbe:
+    # Job-based canary-probe gate: actively probes the canary at first traffic
+    # (no metrics/traffic needed). Opt-in per service/env. Auto-rolls-back on a
+    # failed probe. See templates/analysistemplate-canary-probe.yaml.
+    enabled: false
 
 nodeSelector: {}
 tolerations: []

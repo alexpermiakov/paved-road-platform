@@ -1,0 +1,84 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pod-security-baseline
+  annotations:
+    policies.kyverno.io/title: Pod Security Standards - Baseline
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: Enforce baseline pod security standards
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: deny-privileged-containers
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - argocd
+                - argo-rollouts
+                - monitoring
+                - amazon-guardduty
+                - falco-system
+      validate:
+        message: Privileged containers are not allowed
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  privileged: "!true"
+    - name: deny-host-namespaces
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - monitoring
+                - argocd
+                - argo-rollouts
+                - amazon-guardduty
+                - falco-system
+      validate:
+        message: Host namespaces (hostNetwork, hostPID, hostIPC) are not allowed
+        pattern:
+          spec:
+            "=(hostNetwork)": false
+            "=(hostPID)": false
+            "=(hostIPC)": false
+    - name: deny-host-path
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - monitoring
+                - argocd
+                - argo-rollouts
+                - amazon-guardduty
+                - falco-system
+      validate:
+        message: HostPath volumes are not allowed
+        pattern:
+          spec:
+            "=(volumes)":
+              - "X(hostPath)": "null"

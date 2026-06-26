@@ -1,0 +1,40 @@
+# drops-all: drops ALL Linux capabilities -> allowed (HIPAA §164.312(a)(1))
+apiVersion: v1
+kind: Pod
+metadata:
+  name: drops-all
+  namespace: order-service
+spec:
+  containers:
+    - name: app
+      image: idp/order-service:v1.2.3
+      securityContext:
+        capabilities:
+          drop:
+            - ALL
+---
+# keeps-caps: drops a single capability but not ALL -> denied
+apiVersion: v1
+kind: Pod
+metadata:
+  name: keeps-caps
+  namespace: order-service
+spec:
+  containers:
+    - name: app
+      image: idp/order-service:v1.2.3
+      securityContext:
+        capabilities:
+          drop:
+            - NET_RAW
+---
+# no-security-context: no securityContext at all -> denied
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-security-context
+  namespace: order-service
+spec:
+  containers:
+    - name: app
+      image: idp/order-service:v1.2.3

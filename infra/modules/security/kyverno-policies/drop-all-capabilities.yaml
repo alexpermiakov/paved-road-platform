@@ -1,0 +1,40 @@
+# HIPAA: Drop all capabilities (least privilege - §164.312(a)(1)).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: drop-all-capabilities
+  annotations:
+    policies.kyverno.io/title: Drop All Capabilities
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: Containers must drop ALL capabilities. HIPAA §164.312(a)(1)
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: drop-all-caps
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - monitoring
+                - argocd
+                - argo-rollouts
+                - amazon-guardduty
+                - falco-system
+      validate:
+        message: Containers must drop ALL capabilities
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  capabilities:
+                    drop:
+                      - ALL

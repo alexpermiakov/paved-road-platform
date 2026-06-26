@@ -1,0 +1,27 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: drop-all-capabilities
+policies:
+  - ../../drop-all-capabilities.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: drop-all-capabilities
+    rule: drop-all-caps
+    kind: Pod
+    result: pass
+    resources:
+      - drops-all
+  - policy: drop-all-capabilities
+    rule: drop-all-caps
+    kind: Pod
+    result: fail
+    resources:
+      - keeps-caps
+  - policy: drop-all-capabilities
+    rule: drop-all-caps
+    kind: Pod
+    result: fail
+    resources:
+      - no-security-context

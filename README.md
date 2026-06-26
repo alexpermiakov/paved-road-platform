@@ -14,8 +14,6 @@ A developer pushes a tag in their app repo. CI lints, tests, builds, scans, sign
 > [!NOTE]
 > **What this is.** A working platform deployed to a **real multi-account AWS Organization**, with the full control plane (IaC, CI/CD, GitOps, guardrails, progressive delivery) exercised end-to-end. The AWS environment is real but kept private — I'll walk through it live during the interview. See [Scope & Trade-offs](#-scope--trade-offs) for exactly what's real, what's constrained for this submission, and what I'd do next.
 >
-> Because this repo is public, I've disabled GitHub Actions here and stripped out sensitive details (AWS account IDs, etc.) — but I'm happy to demo it running end-to-end from a separate private repo.
->
 > This is adapted from a personal project of mine and was built AI-assisted (Claude Code) throughout.
 
 ---
@@ -189,6 +187,7 @@ docs/                      # Architecture, runbooks, ADRs, operations
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system design, diagrams, security & DR architecture
 - [SETUP.md](SETUP.md) — full setup instructions
 - [COST.md](COST.md) — monthly AWS estimates by scale (**~$1.5k/mo** platform-only → **~$15.5k/mo** at ~8 teams)
+- [TESTING.md](TESTING.md) — the five-layer testing strategy: unit · static · security · smoke · progressive-delivery gate
 - [docs/operations.md](docs/operations.md) — day-2 ops: dashboards, encryption checks, capacity
 - [docs/runbooks/](docs/runbooks/) — disaster recovery, incident response, SLO burn, rotations
 - [docs/adr/](docs/adr/) — architecture decision records

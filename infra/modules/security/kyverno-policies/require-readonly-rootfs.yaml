@@ -1,0 +1,39 @@
+# HIPAA: Require read-only root filesystem (§164.312(c)(1) - Integrity).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-readonly-rootfs
+  annotations:
+    policies.kyverno.io/title: Require Read-Only Root Filesystem
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: Containers must use read-only root filesystem. HIPAA §164.312(c)(1)
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: check-readonly-rootfs
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - monitoring
+                - argocd
+                - argo-rollouts
+                - kubecost
+                - amazon-guardduty
+                - falco-system
+      validate:
+        message: Containers must set readOnlyRootFilesystem to true
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true

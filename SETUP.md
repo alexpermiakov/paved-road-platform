@@ -8,7 +8,7 @@ This IDP uses a **distributed ArgoCD architecture** with one ArgoCD instance per
 
 ## Setup
 
-### 1. App Team Onboarding
+### 1. App Team onboarding
 
 For app teams to deploy their services, see the complete guide:
 

@@ -23,4 +23,7 @@ cilium:
 rollout:
   analysis:
     minRps: "0"
+  # Active canary-probe gate: probe the canary at 5% before promoting further.
+  canaryProbe:
+    enabled: true
 

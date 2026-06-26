@@ -17,21 +17,42 @@ env:
   TF_VAR_environment: dev
 
 jobs:
-  # Cheap, fast guardrail: lint + unit-test the golden-path Helm chart BEFORE
-  # spending time and money provisioning a real EKS cluster. If it fails, the
-  # provision job below is skipped.
+  # Cheap, fast guardrails that run BEFORE spending time and money provisioning a
+  # real EKS cluster: unit-test the golden-path chart + Kyverno policies, and scan
+  # the IaC for misconfiguration. If either fails, the provision job is skipped.
   chart-tests:
     uses: ./.github/workflows/platform-tests.yaml
 
+  iac-scan:
+    uses: ./.github/workflows/security-scan.yml
+
+  terraform-static:
+    uses: ./.github/workflows/terraform-static.yaml
+
+  secrets-scan:
+    uses: ./.github/workflows/secrets-scan.yaml
+    # The reusable workflow requests these for GitLeaks (SARIF upload + PR
+    # comment); a caller must grant at least what the callee declares, and the
+    # repo default is read-only, so grant them explicitly here.
+    permissions:
+      contents: read
+      security-events: write # GitLeaks uploads its findings as SARIF to the code-scanning tab
+      pull-requests: write # GitLeaks posts the leak summary as a PR comment
+
   provision:
     name: Provision PR Cluster (${{ matrix.region }})
-    needs: chart-tests
+    needs: [chart-tests, iac-scan, terraform-static, secrets-scan]
     runs-on: ubuntu-latest
     environment: dev
     permissions:
       id-token: write
       contents: read
       pull-requests: write
+
+    # Expose the ALB URL so the post-deploy smoke job can target it.
+    # (Single active region in the matrix, so this resolves to one value.)
+    outputs:
+      alb_url: ${{ steps.alb.outputs.url }}
 
     strategy:
       fail-fast: false
@@ -134,12 +155,8 @@ jobs:
             | Resource | URL |
             |----------|-----|
             | **ALB Endpoint** | ${albUrl} |
-            | **Inventory API** | ${albUrl}/inventory |
-            | **Notification Service** | ${albUrl}/notifications |
             | **Order Service** | ${albUrl}/orders |
-            | **Payment Processor** | ${albUrl}/payment |
-            | **Recommendation Engine** | ${albUrl}/recommendations |
-            | **Shipping Calculator** | ${albUrl}/shipping |
+            | **LLM Client** | ${albUrl}/ask |
 
             `;
 
@@ -169,4 +186,36 @@ jobs:
                 body
               });
             }
+
+  smoke:
+    name: Smoke (post-deploy)
+    needs: provision
+    if: needs.provision.outputs.alb_url != '' && needs.provision.outputs.alb_url != 'pending'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install smoke dependencies
+        working-directory: tests
+        run: npm ci
+
+      - name: Run smoke tests
+        working-directory: tests
+        env:
+          SMOKE_BASE_URL: ${{ needs.provision.outputs.alb_url }}
+        run: npx playwright test
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: tests/playwright-report
+          retention-days: 7
 
